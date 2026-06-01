@@ -1,0 +1,12 @@
+{
+  "name": "ja2-webmap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stitched isometric world map of Jagged Alliance 2 (Arulco)",
+  "license": "MIT",
+  "scripts": {
+    "probe": "node build/probe.js",
+    "build:one": "node build/build.js --one",
+    "build": "node build/build.js"
+  }
+}

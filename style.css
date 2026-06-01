@@ -1,0 +1,75 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0c0e; }
+body { font: 13px/1.4 -apple-system, Segoe UI, Roboto, sans-serif; color: #e8e4d8; }
+
+#map { position: fixed; inset: 0; display: block; cursor: grab; background: #0b0c0e; touch-action: none; }
+#map.drag { cursor: grabbing; }
+
+#panel {
+  position: fixed; top: 14px; left: 14px; z-index: 10;
+  background: rgba(20, 22, 26, 0.86); border: 1px solid #3a3d44; border-radius: 10px;
+  padding: 12px 14px; max-width: 290px; backdrop-filter: blur(6px);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.5);
+  max-height: calc(100vh - 28px); overflow-y: auto;
+}
+#panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+#panel h1 { margin: 0 0 2px; font-size: 16px; font-weight: 650; color: #f0c674; letter-spacing: .2px; }
+.panel-btns { display: flex; gap: 6px; flex: 0 0 auto; }
+.panel-btns button { background: rgba(255,255,255,0.08); color: #d7d3c7; border: 1px solid #3a3d44; border-radius: 6px; min-width: 24px; height: 24px; padding: 0 6px; cursor: pointer; font-size: 14px; line-height: 1; }
+.panel-btns button:hover { background: rgba(255,255,255,0.18); color: #fff; }
+#panel.collapsed { padding: 8px; max-width: none; width: auto; }
+#panel.collapsed #panel-body, #panel.collapsed h1, #panel.collapsed #help-btn, #panel.collapsed #reset-btn { display: none; }
+
+dialog#help { max-width: 460px; width: calc(100vw - 40px); border: 1px solid #3a3d44; border-radius: 12px;
+  background: #16181c; color: #e8e4d8; padding: 20px 22px; box-shadow: 0 12px 48px rgba(0,0,0,0.65); }
+dialog#help::backdrop { background: rgba(0,0,0,0.55); }
+#help h2 { margin: 0 0 12px; font-size: 17px; color: #f0c674; }
+#help ul { margin: 0; padding-left: 20px; line-height: 1.55; font-size: 13px; }
+#help li { margin: 5px 0; }
+#help b { color: #f0c674; font-weight: 600; }
+#help code { background: #2a2d33; border: 1px solid #444; border-radius: 4px; padding: 0 5px; font-size: 12px; }
+.help-foot { margin-top: 16px; text-align: right; }
+.help-foot button { background: #f0c674; color: #1a1a1a; border: 0; border-radius: 7px; padding: 7px 16px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.help-foot button:hover { background: #f4d289; }
+#panel .sub { color: #a9a497; font-size: 11.5px; margin-bottom: 10px; }
+#panel label { display: block; margin: 5px 0; cursor: pointer; user-select: none; }
+#panel input { vertical-align: -1px; margin-right: 6px; accent-color: #f0c674; }
+#panel .hint { margin-top: 9px; color: #7e7a70; font-size: 11px; }
+#panel .muted { color: #7e7a70; font-size: 10.5px; }
+
+#legend { margin-top: 10px; border-top: 1px solid #3a3d44; padding-top: 9px; }
+#legend .leg-title { color: #a9a497; font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 5px; }
+/* #legend-scoped so these beat `#panel label { display:block }` (id-specificity) — otherwise the row
+   isn't a flex container and the swatch falls back to inline baseline alignment (icons ride high). */
+#legend .leg-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; color: #d7d3c7; cursor: pointer; user-select: none; }
+#legend .leg-row input { margin: 0; accent-color: #f0c674; flex: 0 0 auto; }
+#legend .leg-row.off { opacity: .4; }
+/* All legend swatches share one fixed-width column so the text labels line up. */
+.leg-ic, .leg-dot, .leg-line, .leg-grad { flex: 0 0 20px; width: 20px; }
+.leg-ic { height: 20px; }
+.leg-pair { display: inline-flex; align-items: center; gap: 1px; flex: 0 0 auto; }
+.leg-pair canvas { width: 17px; height: 17px; }
+.leg-dot { height: 18px; background: radial-gradient(circle 7px at center, var(--c) 99%, rgba(0,0,0,0) 100%); }
+.leg-line { height: 5px; border-radius: 3px; }
+.leg-grad { height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.5);
+  background: linear-gradient(90deg, hsl(120,75%,45%), hsl(60,75%,45%), hsl(0,75%,45%)); }
+
+#info { margin-top: 10px; border-top: 1px solid #3a3d44; padding-top: 9px; }
+#info.hidden { display: none; }
+#info .code { font-size: 18px; font-weight: 700; color: #f0c674; }
+#info .name { font-size: 13px; margin-top: 1px; }
+#info .meta { margin-top: 6px; }
+.i-row { display: grid; grid-template-columns: 66px 1fr; column-gap: 9px; padding: 3px 0; font-size: 11.5px; line-height: 1.35; }
+.i-row + .i-row { border-top: 1px solid rgba(255,255,255,0.06); }
+.i-k { color: #8f8a7e; text-align: right; }
+.i-v { color: #d7d3c7; overflow-wrap: anywhere; }
+#copy-link { margin-top: 9px; background: rgba(255,255,255,0.08); color: #d7d3c7; border: 1px solid #3a3d44;
+  border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+#copy-link:hover { background: rgba(255,255,255,0.18); color: #fff; }
+#copy-link.copied { background: rgba(120,200,120,0.25); color: #cfe9c0; border-color: #5a8a4a; }
+
+#loading {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #f0c674; font-size: 18px; z-index: 20; background: #0b0c0e;
+}
+#loading.hidden { display: none; }

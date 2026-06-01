@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Arulco — Combined Tactical World Map (JA2 1.13)</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<canvas id="map"></canvas>
+
+<div id="panel">
+  <div id="panel-head">
+    <h1>Arulco World Map</h1>
+    <div class="panel-btns">
+      <button id="reset-btn" type="button" title="Reset view (fit whole map)" aria-label="Reset view">⤢</button>
+      <button id="help-btn" type="button" title="Help" aria-label="Help">?</button>
+      <button id="collapse-btn" type="button" title="Collapse panel" aria-label="Collapse panel">‹</button>
+    </div>
+  </div>
+  <div id="panel-body">
+    <div class="sub">Jagged Alliance 2 — 202 surface + 38 underground sectors, stitched into one map.</div>
+    <label>Level <select id="level"></select></label>
+    <label><input type="checkbox" id="t-grid" checked /> Grid &amp; labels</label>
+    <label><input type="checkbox" id="t-detail" checked /> High-detail (zoom in)</label>
+    <label><input type="checkbox" id="t-roofs" checked /> Roofs <span class="muted">(off = interiors)</span></label>
+    <div id="legend"></div>
+    <div class="hint">Drag to pan · scroll to zoom · click a sector</div>
+    <div id="info" class="hidden">
+      <div class="code" id="i-code">—</div>
+      <div class="name" id="i-name"></div>
+      <div class="meta" id="i-meta"></div>
+      <button id="copy-link" type="button" title="Copy a shareable link to this sector/view">🔗 Copy link</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="help">
+  <h2>Arulco World Map — Help</h2>
+  <ul>
+    <li><b>Pan</b> — drag the map.</li>
+    <li><b>Zoom</b> — scroll / mouse-wheel. High-detail tiles stream in as you zoom.</li>
+    <li><b>Select a sector</b> — click it for a highlight and the info readout; click it again (or click empty space) to deselect.</li>
+    <li><b>Levels</b> — switch between Surface and Basement 1–3 with the <i>Level</i> dropdown.</li>
+    <li><b>Layers</b> — toggle towns, mines, SAM sites, garrisons, quests, creature zones, roads, terrain and the difficulty heatmap in the legend.</li>
+    <li><b>Share a view</b> — the address bar updates as you pan, zoom and select. Use <b>🔗 Copy link</b> on a selected sector (or copy the URL) to share the exact view; opening it restores the position, zoom and selected sector. A bare sector code (e.g. <code>#C13</code>) also works.</li>
+    <li><b>Touch</b> — drag with one finger to pan, pinch with two to zoom, tap a sector to select.</li>
+    <li><b>Keyboard</b> — <code>↑ ↓ ← →</code> or <code>W A S D</code> to pan, <code>+</code>/<code>−</code> to zoom, <code>F</code> to fit the whole map, <code>Esc</code> to deselect.</li>
+    <li><b>Reset / Collapse</b> — <b>⤢</b> fits the whole map; <b>‹</b> folds this panel away (<b>☰</b> brings it back).</li>
+  </ul>
+  <div class="help-foot"><button id="help-close" type="button">Close</button></div>
+</dialog>
+
+<div id="loading">Loading map…</div>
+
+<img id="ov-surface" src="dist/overview_surface.webp" alt="" style="position:fixed;left:-99999px;width:1px;height:1px;" />
+<script src="dist/data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
