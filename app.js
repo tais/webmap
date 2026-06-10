@@ -99,7 +99,7 @@
   function ensureLevelImg(lv) {
     if (!lv.img) { lv.img = new Image(); lv.img.src = lv.src; }
     // Roof-overlay overview (surface only): lazily load so the Roofs toggle can composite it over the base.
-    if (lv.srcRoof && !lv.imgRoof) { lv.imgRoof = new Image(); lv.imgRoof.onload = schedule; lv.imgRoof.src = lv.srcRoof; if (lv.imgRoof.decode) lv.imgRoof.decode().then(schedule).catch(() => {}); }
+    if (lv.srcRoof && !lv.imgRoof) { lv.imgRoof = new Image(); lv.imgRoof.onload = schedule; lv.imgRoof.onerror = () => { lv.roofErr = true; schedule(); }; lv.imgRoof.src = lv.srcRoof; if (lv.imgRoof.decode) lv.imgRoof.decode().then(schedule).catch(() => {}); }
     const img = lv.img;
     const ready = () => { loading.classList.add('hidden'); schedule(); };
     if (imgReady(img)) loading.classList.add('hidden');
@@ -256,12 +256,15 @@
     ctx.fillStyle = '#0b0c0e'; ctx.fillRect(0, 0, cw, ch);
     const zx = view.zoom * ASPECT, zy = view.zoom;
 
-    if (imgReady(cur.img)) {
+    // When roofs are on (and this level has a roof overlay), draw the roofless base + roof overlay TOGETHER,
+    // only once BOTH have decoded — otherwise the base shows first and buildings flash roofless on reload.
+    // (roofErr falls back to base-only so a failed roof image can't leave the overview blank.)
+    const wantRoofOv = layers.roofs && cur.srcRoof && !cur.roofErr;
+    if (imgReady(cur.img) && (!wantRoofOv || imgReady(cur.imgRoof))) {
       const tl = toScreen(BOUNDS.minX, BOUNDS.minY);
       ctx.imageSmoothingEnabled = live; // nearest-neighbour while moving is cheaper; smooth on settle
       ctx.drawImage(cur.img, tl.x, tl.y, BOUNDS.width * zx, BOUNDS.height * zy);
-      // Roof overlay (surface): composite over the roofless base overview when roofs are on.
-      if (layers.roofs && imgReady(cur.imgRoof)) ctx.drawImage(cur.imgRoof, tl.x, tl.y, BOUNDS.width * zx, BOUNDS.height * zy);
+      if (wantRoofOv) ctx.drawImage(cur.imgRoof, tl.x, tl.y, BOUNDS.width * zx, BOUNDS.height * zy);
     }
 
     if (layers.detail && view.zoom >= DETAIL_MIN_ZOOM && live && PYR) {
@@ -279,12 +282,15 @@
           const tp = toScreen(s.gx + col * twW, s.gy + row * twH), tw = twW * zx, th = twH * zy;
           if (tp.x + tw < 0 || tp.y + th < 0 || tp.x > cw || tp.y > ch) continue; // load only on-screen tiles
           const key = L.z + '_' + col + '_' + row;
+          const hasRoof = layers.roofs && s.roofTiles && s.roofTiles.indexOf(key) >= 0;
           const bmp = getDetail('sectors/' + s.tiles + '/z' + key + '.' + PEXT);
-          if (bmp) ctx.drawImage(bmp, tp.x, tp.y, tw + 1, th + 1); // +1px overlap hides seams
-          // Roof overlay tile composited over the roofless base when roofs are on (surface only).
-          if (layers.roofs && s.roofTiles && s.roofTiles.indexOf(key) >= 0) {
-            const rb = getDetail('sectors/' + s.tiles + '/z' + key + '_roof.' + PEXT);
-            if (rb) ctx.drawImage(rb, tp.x, tp.y, tw + 1, th + 1);
+          // Roofed tiles: draw the roofless base + roof tile TOGETHER, only once both have decoded, so a
+          // tile never flashes roofless while streaming in (the lower pyramid level / overview shows through).
+          const rb = hasRoof ? getDetail('sectors/' + s.tiles + '/z' + key + '_roof.' + PEXT) : null;
+          if (hasRoof) {
+            if (bmp && rb) { ctx.drawImage(bmp, tp.x, tp.y, tw + 1, th + 1); ctx.drawImage(rb, tp.x, tp.y, tw + 1, th + 1); } // +1px overlap hides seams
+          } else if (bmp) {
+            ctx.drawImage(bmp, tp.x, tp.y, tw + 1, th + 1);
           }
         }
       }
