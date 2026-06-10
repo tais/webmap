@@ -5,6 +5,7 @@
 const fs = require('fs');
 const { openSlf } = require('./slf');
 const { decodeSti } = require('./sti');
+const { parseJsd, buildZStripsForSti } = require('./structure');
 
 const GENERIC_TILESET = 0;
 
@@ -34,12 +35,27 @@ function createTilesetResolver(ja2setXmlPath, tilesetsSlfPath) {
   const stiCache = new Map(); // slf path -> decoded STI | null
   const stats = { resolved: 0, fallback: 0, missing: 0 };
 
+  // Fetch the .jsd structure file paired with an STI path (same `id\name`, .JSD extension), parse it,
+  // and return the per-subimage ZStripInfo array (null when this STI has no multi-tile wall structures).
+  // The .jsd lives in the SAME Tilesets.slf next to the STI (1266 of them). Used to drive the per-pixel
+  // wall Z-strips in renderSector, exactly like the game's AddZStripInfoToVObject.
+  function loadZStrips(p, sti) {
+    const jpath = p.replace(/\.sti$/i, '.JSD');
+    const jbuf = slf.get(jpath);
+    if (!jbuf) return null;
+    let jsd;
+    try { jsd = parseJsd(jbuf); } catch (e) { jsd = null; }
+    if (!jsd) return null;
+    try { return buildZStripsForSti(jsd, sti.subimages); } catch (e) { return null; }
+  }
+
   function loadStiByPath(p) {
     if (stiCache.has(p)) return stiCache.get(p);
     const buf = slf.get(p);
     let sti = null;
     if (buf) {
       try { sti = decodeSti(buf); } catch (e) { sti = null; }
+      if (sti) sti.zstrips = loadZStrips(p, sti); // per-subimage wall Z-strips (or null)
     }
     stiCache.set(p, sti);
     return sti;
