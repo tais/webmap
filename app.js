@@ -146,9 +146,13 @@
   });
   // Layer visibility (grid/detail are plain checkboxes; the rest are interactive legend rows).
   const layers = { grid: true, detail: true, roofs: true, cool: false, town: true, mine: true, sam: true, heli: true, ship: true, garrison: false, patrol: false, poi: false, npc: false, loot: false, creatures: false, roads: false, terrain: false };
-  for (const [k, id] of [['grid', 't-grid'], ['detail', 't-detail'], ['roofs', 't-roofs']]) {
-    const el = document.getElementById(id); layers[k] = el.checked; el.addEventListener('change', () => { layers[k] = el.checked; schedule(); });
+  const topToggles = [['grid', 't-grid'], ['detail', 't-detail'], ['roofs', 't-roofs']];
+  for (const [k, id] of topToggles) {
+    const el = document.getElementById(id); el.checked = layers[k]; el.addEventListener('change', () => { layers[k] = el.checked; schedule(); });
   }
+  // The map's layer state is `layers` (above) — the source of truth. Browsers restore checkbox state on
+  // reload/bfcache; ignore that and re-assert our defaults onto the boxes so the boxes and map never desync.
+  window.addEventListener('pageshow', () => { for (const [k, id] of topToggles) { const el = document.getElementById(id); if (el) el.checked = layers[k]; } schedule(); });
   // Legend doubles as per-layer visibility toggles.
   (function buildLegend() {
     const el = document.getElementById('legend'); if (!el) return;
