@@ -147,7 +147,7 @@
   // Layer visibility (grid/detail are plain checkboxes; the rest are interactive legend rows).
   const layers = { grid: true, detail: true, roofs: true, cool: false, town: true, mine: true, sam: true, heli: true, ship: true, garrison: false, patrol: false, poi: false, npc: false, loot: false, creatures: false, roads: false, terrain: false };
   for (const [k, id] of [['grid', 't-grid'], ['detail', 't-detail'], ['roofs', 't-roofs']]) {
-    const el = document.getElementById(id); el.addEventListener('change', () => { layers[k] = el.checked; schedule(); });
+    const el = document.getElementById(id); layers[k] = el.checked; el.addEventListener('change', () => { layers[k] = el.checked; schedule(); });
   }
   // Legend doubles as per-layer visibility toggles.
   (function buildLegend() {
