@@ -7,6 +7,7 @@ const path = require('path');
 const cfg = require('./config');
 const { openSlf } = require('./slf');
 const { parseDat } = require('./dat');
+const { parseWorldItems, IC_LBEGEAR } = require('./worlditems');
 
 const LETTERS = 'ABCDEFGHIJKLMNOP';
 const codeFromXY = (x, y) => LETTERS[y - 1] + x; // x=col 1..16, y=row 1..16
@@ -234,10 +235,11 @@ function parseItemTable(xml) {
   while ((m = re.exec(xml))) { const b = m[1], i = numTag(b, 'uiIndex'); if (i == null) continue; t[i] = { name: tag(b, 'szItemName') || tag(b, 'szLongItemName') || ('#' + i), cls: numTag(b, 'usItemClass') || 0 }; }
   return t;
 }
-// Each vanilla (<6.0) map stores world items as fixed 52-byte OLD_WORLDITEM_101 records (verified):
-//   sGridNo @2 (INT16), object @8 -> usItem @8 (UINT16), ubNumberOfObjects @10 (UINT8).
-// Newer (>=6.0, minor>26) maps use a variable recursive format — we report the count only.
+// World-item spawns per map, parsed from each tactical .dat. worlditems.js decodes BOTH the old fixed
+// 52-byte records (vanilla/UB) and the 1.13 variable recursive format (v7/v8), so every map gets real
+// loot. We keep only NOTABLE items (weapons/ammo/armour/explosives/medical/money), top 14 by quantity.
 function parseItems(itemTbl) {
+  const lbeSet = new Set(Object.keys(itemTbl).filter((i) => itemTbl[i].cls & IC_LBEGEAR).map(Number));
   const slf = openSlf(cfg.MAPS_SLF);
   const dirs = [path.resolve(cfg.GAME_ROOT, '..', 'Data-1.13', 'Maps'), path.join(cfg.GAME_ROOT, 'Maps')];
   const resolve = (code) => { const fn = code.toLowerCase() + '.dat'; for (const d of dirs) { const p = path.join(d, fn); if (fs.existsSync(p)) return fs.readFileSync(p); } return slf.get(code + '.dat'); };
@@ -248,21 +250,17 @@ function parseItems(itemTbl) {
   for (const code of [...codes].sort()) {
     const buf = resolve(code); if (!buf) continue;
     let dat; try { dat = parseDat(buf); } catch (e) { continue; }
-    if (!(dat.flags & 0x8)) continue; // MAP_WORLDITEMS_SAVED
-    let p = dat.bytesConsumed; if (dat.major === 6.0 && dat.minor < 27) p += 37 * 4; p += dat.size * (dat.minor < 29 ? 1 : 2); // skip room info
-    if (p + 4 > buf.length) continue;
-    const N = buf.readUInt32LE(p), base = p + 4;
-    if (N <= 0) continue;
-    if (dat.major >= 6.0 && dat.minor > 26) { out[code] = { partial: true }; continue; } // variable format — can't parse loot
-    if (base + N * 52 > buf.length) continue;
-    const qty = {}; let weapons = false, loot = 0; // count only NOTABLE loot; ignore map triggers/Action Items (IC_MISC)
-    for (let k = 0; k < N; k++) {
-      const o = base + k * 52, it = buf.readUInt16LE(o + 8), num = buf[o + 10] || 1, info = itemTbl[it];
-      if (!info || !(info.cls & NOTABLE)) continue;
+    const wi = parseWorldItems(buf, dat, lbeSet);
+    if (!wi || !wi.items.length) continue; // no items section, or empty
+    const qty = {}; let weapons = false, loot = 0; // count only NOTABLE loot; ignore map triggers / Action Items
+    const add = (idx, num) => {
+      const info = itemTbl[idx];
+      if (!info || !(info.cls & NOTABLE)) return;
       qty[info.name] = (qty[info.name] || 0) + num; loot += num;
       if (info.cls & WEAPON) weapons = true;
-    }
-    if (loot > 0) out[code] = { count: loot, weapons, notable: Object.entries(qty).sort((a, b) => b[1] - a[1]).slice(0, 14).map(([name, q]) => ({ name, qty: q })) };
+    };
+    for (const it of wi.items) { if (!it.usItem) continue; add(it.usItem, it.count || 1); for (const a of it.attachments || []) add(a, 1); }
+    if (loot > 0) out[code] = { count: loot, weapons, notable: Object.entries(qty).sort((a, b) => b[1] - a[1]).slice(0, 14).map(([name, q]) => ({ name, qty: q })), partial: !wi.complete };
   }
   return out;
 }
