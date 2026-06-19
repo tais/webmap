@@ -1,18 +1,33 @@
 'use strict';
-// Parses a JA2 tactical map .dat into the data we need to render it.
-// Format confirmed from source/TileEngine/worlddef.cpp LoadWorld():
-//   f32 major, u8 minor, [if major>=7: i32 rows, i32 cols], i32 flags, i32 tilesetId, i32 soldierSize,
-//   int16 height[size], 4*u8 layer counts (nibble-packed) per tile,
-//   then layers grouped: land, object, struct, shadow, roof, onroof.
-//   Each node = u8 type + subindex (u8 for all layers EXCEPT object = u16).
-//   We stop after the onroof layer (room info / optional sections are not needed for rendering).
+// Parses a JA2 tactical map .dat into the data we need to render it (through the onroof layer).
+// ONE parser reads EVERY map version — vanilla (5.x), Unfinished Business (6.x), 1.13 (7.x) and the
+// current 8.x — because the header and the world-tile data are shared; only two header fields are
+// version-gated. Byte layout confirmed against source/TileEngine/worlddef.cpp (EvaluateWorldData
+// ~2458-2522 and LoadWorld):
+//   f32 dMajorMapVersion
+//   u8  ubMinorMapVersion        — present only if major >= 4.00 (every real map; vanilla is 5.00)
+//   i32 rows, i32 cols           — present only if major >= 7.00 (variable size / bigmaps);
+//                                  pre-v7 maps (vanilla, UB) are the fixed OLD_WORLD 160x160
+//   i32 flags, i32 tilesetId, i32 soldierSize
+//   i16 height[rows*cols]
+//   per-tile layer counts: 4 bytes nibble-packed (land|worldflags, object|struct, shadow|roof, onroof|-)
+//   layers land, object, struct, shadow, roof, onroof — each node = u8 type + sub-index, where the sub
+//     is u16 for the OBJECT layer and u8 for every other layer. This is version-INDEPENDENT: it matches
+//     the source's skip of exactly `2*totalNodes + objectCount` bytes for the whole world-data block.
+//   [room info / exit grids / world items / soldiers ... follow — version-dependent, post-onroof, NOT
+//    needed for rendering; the item offset (incl. the v6<27 quirk) is handled in overlays.js.]
+// v8 differs from v7 only in those later (post-onroof) sections (larger team sizes), so a v8 map's tile
+// data is byte-identical in shape to a v7 map and renders the same.
+
+const OLD_WORLD = 160; // OLD_WORLD_ROWS / OLD_WORLD_COLS — fixed map dimensions for pre-v7 maps
 
 function parseDat(buf) {
   let p = 0;
   const major = buf.readFloatLE(p); p += 4;
-  const minor = buf.readUInt8(p); p += 1;
-  let rows = 160, cols = 160;
-  if (major >= 7.0) { rows = buf.readInt32LE(p); p += 4; cols = buf.readInt32LE(p); p += 4; }
+  let minor = 0;
+  if (major >= 4.0) { minor = buf.readUInt8(p); p += 1; } // vanilla (5.00) and up always carry a minor byte
+  let rows = OLD_WORLD, cols = OLD_WORLD;
+  if (major >= 7.0) { rows = buf.readInt32LE(p); p += 4; cols = buf.readInt32LE(p); p += 4; } // v7+ variable size
   const flags = buf.readInt32LE(p); p += 4;
   const tilesetId = buf.readInt32LE(p); p += 4;
   const soldierSize = buf.readInt32LE(p); p += 4;
